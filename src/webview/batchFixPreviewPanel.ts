@@ -451,14 +451,14 @@ export class BatchFixPreviewPanel {
         const { issue, fixedCode, explanation, error, accepted } = issueFix;
 
         return `
-          <div class="diff-section" style="opacity: ${accepted ? 1 : 0.6}; border-left: 3px solid ${accepted ? '#2d7d2d' : '#666'}; padding-left: 12px; margin-left: 0;">
+          <div class="diff-section" style="opacity: ${accepted ? 1 : 0.6}; border-left: 3px solid ${accepted ? "#2d7d2d" : "#666"}; padding-left: 12px; margin-left: 0;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
               <div style="flex: 1;">
                 <div class="issue-label">${issue.rule} (Line ${issue.line + 1}): ${issue.message}</div>
               </div>
               <div style="display: flex; gap: 6px;">
-                <button style="padding: 4px 10px; font-size: 11px; background: ${accepted ? '#2d7d2d' : 'var(--vscode-textBlockQuote-background)'}; color: ${accepted ? '#4ec94e' : 'var(--vscode-foreground)'}; border: 1px solid ${accepted ? '#2d7d2d' : 'var(--vscode-border)'}; border-radius: 3px; cursor: pointer;" onclick="toggleFix(${index}, ${fixIndex}); event.stopPropagation();">
-                  ${accepted ? '✓ Accept' : '✗ Reject'}
+                <button style="padding: 4px 10px; font-size: 11px; background: ${accepted ? "#2d7d2d" : "var(--vscode-textBlockQuote-background)"}; color: ${accepted ? "#4ec94e" : "var(--vscode-foreground)"}; border: 1px solid ${accepted ? "#2d7d2d" : "var(--vscode-border)"}; border-radius: 3px; cursor: pointer;" onclick="toggleFix(${index}, ${fixIndex}); event.stopPropagation();">
+                  ${accepted ? "✓ Accept" : "✗ Reject"}
                 </button>
               </div>
             </div>

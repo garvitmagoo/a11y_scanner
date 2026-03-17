@@ -14,7 +14,7 @@ export const TestComponent = () => {
       <img src="logo.png" alt="Company logo" />
 
       {/* FAIL: Button without accessible text */}
-      <button onClick={() => alert("Clicked")} aria-label="Click me"></button>
+      <button onClick={() => alert("Clicked")}>
         <span></span>
       </button>
 
@@ -22,18 +22,12 @@ export const TestComponent = () => {
       <div
         onClick={() => console.log("div clicked")}
         style={{ cursor: "pointer" }}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { console.log("div clicked"); } }}
-      >
-        onClick={() => console.log("div clicked")}
-        style={{ cursor: "pointer" }}
       >
         Click me
       </div>
 
       {/* FAIL: Form input without label */}
-      <label htmlFor="nameInput">Name: <label htmlFor="nameInput">Name: <label htmlFor="nameInput">Name: <input id="nameInput" type="text" placeholder="Enter your name" /></label>
+      <input type="text" placeholder="Enter your name" />
 
       {/* FAIL: Invalid heading order - h1 followed by h3 */}
       <h1>Main Heading</h1>
@@ -51,7 +45,7 @@ export const TestComponent = () => {
       <div aria-label="">Empty label</div>
 
       {/* FAIL: Color contrast too low */}
-      <div style={{ color: '#767676', backgroundColor: '#ffffff' }}>
+      <div style={{ color: "#767676", backgroundColor: "#ffffff" }}>
         Low contrast text
       </div>
 
@@ -92,7 +86,14 @@ export const TestComponent = () => {
       </div>
 
       {/* FAIL: Click handler requires keyboard equivalent */}
-      <li role="button" tabIndex={0} onClick={() => setIsOpen(!isOpen)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsOpen(!isOpen); }}>
+      <li
+        role="button"
+        tabIndex={0}
+        onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") setIsOpen(!isOpen);
+        }}
+      >
         Clickable list item (no keyboard support)
       </li>
 

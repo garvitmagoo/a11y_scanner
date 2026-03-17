@@ -1,8 +1,8 @@
-import * as vscode from 'vscode';
-import type { A11yIssue } from '../types';
-import { getAiFix } from './provider';
-import { scanForA11yIssues } from '../scanner/astScanner';
-import { loadConfig, applyConfig, isExcluded } from '../config';
+import * as vscode from "vscode";
+import type { A11yIssue } from "../types";
+import { getAiFix } from "./provider";
+import { scanForA11yIssues } from "../scanner/astScanner";
+import { loadConfig, applyConfig, isExcluded } from "../config";
 
 /**
  * Represents a file with accessibility issues and their proposed fixes.
@@ -22,7 +22,7 @@ export interface FileFixPreview {
  */
 export interface IssueFix {
   issue: A11yIssue;
-  status: 'pending' | 'applied' | 'failed';
+  status: "pending" | "applied" | "failed";
   fixedCode?: string;
   explanation?: string;
   error?: string;
@@ -56,9 +56,9 @@ export async function getFileBatchFixPreview(
   issues = applyConfig(config, issues);
 
   // Prepare fixes for each issue
-  const issueFixes: IssueFix[] = issues.map(issue => ({
+  const issueFixes: IssueFix[] = issues.map((issue) => ({
     issue,
-    status: 'pending',
+    status: "pending",
     accepted: true, // Accept all by default, user can uncheck
   }));
 
@@ -67,14 +67,18 @@ export async function getFileBatchFixPreview(
     const surroundingContext = getContextSnippet(originalCode, issueFix.issue);
     const codeSnippet = issueFix.issue.snippet;
 
-    const aiFix = await getAiFix(codeSnippet, issueFix.issue, surroundingContext);
+    const aiFix = await getAiFix(
+      codeSnippet,
+      issueFix.issue,
+      surroundingContext,
+    );
     if (aiFix) {
-      issueFix.status = 'applied';
+      issueFix.status = "applied";
       issueFix.fixedCode = aiFix.fixedCode;
       issueFix.explanation = aiFix.explanation;
     } else {
-      issueFix.status = 'failed';
-      issueFix.error = 'Failed to get AI fix';
+      issueFix.status = "failed";
+      issueFix.error = "Failed to get AI fix";
     }
   }
 
@@ -84,22 +88,22 @@ export async function getFileBatchFixPreview(
   let failedCount = 0;
 
   // Validate issues have valid line/column positions before attempting fixes
-  const codeLines = originalCode.split('\n');
+  const codeLines = originalCode.split("\n");
   for (const issueFix of issueFixes) {
     const issue = issueFix.issue;
     const line = codeLines[issue.line];
-    
+
     // Check if line is within bounds
     if (!line || issue.line >= codeLines.length) {
-      issueFix.status = 'failed';
+      issueFix.status = "failed";
       issueFix.error = `Invalid position: line ${issue.line} out of bounds`;
       failedCount++;
       continue;
     }
-    
+
     // Check if column is within bounds
     if (issue.column > line.length) {
-      issueFix.status = 'failed';
+      issueFix.status = "failed";
       issueFix.error = `Invalid position: column ${issue.column} exceeds line length ${line.length}`;
       failedCount++;
       continue;
@@ -108,26 +112,30 @@ export async function getFileBatchFixPreview(
 
   // Sort issues by line number in reverse to avoid offset issues
   const sortedFixes = [...issueFixes]
-    .filter(fix => fix.status === 'applied') // Only try to apply valid fixes
+    .filter((fix) => fix.status === "applied") // Only try to apply valid fixes
     .sort(
-      (a, b) => (b.issue.line - a.issue.line) || (b.issue.column - a.issue.column),
+      (a, b) => b.issue.line - a.issue.line || b.issue.column - a.issue.column,
     );
 
   for (const issueFix of sortedFixes) {
-    if (issueFix.status === 'applied' && issueFix.fixedCode) {
+    if (issueFix.status === "applied" && issueFix.fixedCode) {
       try {
-        fixedCode = applyFixToCode(fixedCode, issueFix.issue, issueFix.fixedCode);
+        fixedCode = applyFixToCode(
+          fixedCode,
+          issueFix.issue,
+          issueFix.fixedCode,
+        );
         appliedCount++;
       } catch (e) {
-        issueFix.status = 'failed';
-        issueFix.error = `Failed to apply fix: ${e instanceof Error ? e.message : 'Unknown error'}`;
+        issueFix.status = "failed";
+        issueFix.error = `Failed to apply fix: ${e instanceof Error ? e.message : "Unknown error"}`;
         failedCount++;
       }
     }
   }
-  
+
   // Count already-failed fixes
-  failedCount += issueFixes.filter(fix => fix.status === 'failed').length;
+  failedCount += issueFixes.filter((fix) => fix.status === "failed").length;
 
   return {
     uri: document.uri,
@@ -144,7 +152,10 @@ export async function getFileBatchFixPreview(
  * Get batch fix previews for all files in the workspace.
  */
 export async function getWorkspaceBatchFixPreview(): Promise<FileFixPreview[]> {
-  const files = await vscode.workspace.findFiles('**/*.{tsx,jsx}', '**/node_modules/**');
+  const files = await vscode.workspace.findFiles(
+    "**/*.{tsx,jsx}",
+    "**/node_modules/**",
+  );
   const config = await loadConfig();
 
   const previews: FileFixPreview[] = [];
@@ -172,14 +183,18 @@ export async function getWorkspaceBatchFixPreview(): Promise<FileFixPreview[]> {
  * Apply all approved fixes from the preview to the actual file.
  * Only applies fixes that have been explicitly accepted by the user.
  */
-export async function applyBatchFixPreview(preview: FileFixPreview): Promise<void> {
+export async function applyBatchFixPreview(
+  preview: FileFixPreview,
+): Promise<void> {
   const document = await vscode.workspace.openTextDocument(preview.uri);
   const editor = await vscode.window.showTextDocument(document);
 
   let modifiedCode = document.getText();
 
   // Filter to only accepted fixes
-  const acceptedFixes = preview.issues.filter(fix => fix.accepted && fix.status === 'applied' && fix.fixedCode);
+  const acceptedFixes = preview.issues.filter(
+    (fix) => fix.accepted && fix.status === "applied" && fix.fixedCode,
+  );
 
   if (acceptedFixes.length === 0) {
     return;
@@ -187,15 +202,21 @@ export async function applyBatchFixPreview(preview: FileFixPreview): Promise<voi
 
   // Sort fixes by line number in reverse to avoid offset issues
   const sortedFixes = [...acceptedFixes].sort(
-    (a, b) => (b.issue.line - a.issue.line) || (b.issue.column - a.issue.column),
+    (a, b) => b.issue.line - a.issue.line || b.issue.column - a.issue.column,
   );
 
   // Apply each accepted fix
   for (const issueFix of sortedFixes) {
     try {
-      modifiedCode = applyFixToCode(modifiedCode, issueFix.issue, issueFix.fixedCode!);
+      modifiedCode = applyFixToCode(
+        modifiedCode,
+        issueFix.issue,
+        issueFix.fixedCode!,
+      );
     } catch (e) {
-      console.error(`Failed to apply fix: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      console.error(
+        `Failed to apply fix: ${e instanceof Error ? e.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -205,7 +226,7 @@ export async function applyBatchFixPreview(preview: FileFixPreview): Promise<voi
     document.lineAt(document.lineCount - 1).range.end,
   );
 
-  await editor.edit(editBuilder => {
+  await editor.edit((editBuilder) => {
     editBuilder.replace(fullRange, modifiedCode);
   });
 
@@ -217,7 +238,10 @@ export async function applyBatchFixPreview(preview: FileFixPreview): Promise<voi
  * Apply all approved fixes from multiple file previews with automatic retry.
  * Will retry up to 2 times to achieve a perfect score (100%).
  */
-export async function applyBatchFixPreviews(previews: FileFixPreview[], maxRetries: number = 2): Promise<void> {
+export async function applyBatchFixPreviews(
+  previews: FileFixPreview[],
+  maxRetries: number = 2,
+): Promise<void> {
   let currentRetry = 0;
 
   while (currentRetry <= maxRetries) {
@@ -243,11 +267,14 @@ export async function applyBatchFixPreviews(previews: FileFixPreview[], maxRetri
     // If all files have perfect score or we've exhausted retries, stop
     if (allPerfect || currentRetry >= maxRetries) {
       const summary = Array.from(scoresPerFile.entries())
-        .map(([path, score]) => `${vscode.workspace.asRelativePath(path)}: ${score}%`)
-        .join('\n');
+        .map(
+          ([path, score]) =>
+            `${vscode.workspace.asRelativePath(path)}: ${score}%`,
+        )
+        .join("\n");
 
       vscode.window.showInformationMessage(
-        `A11y Scanner: Fixes applied${currentRetry > 0 ? ` (${currentRetry} ${currentRetry === 1 ? 'retry' : 'retries'})` : ''}.\n\nScores:\n${summary}`,
+        `A11y Scanner: Fixes applied${currentRetry > 0 ? ` (${currentRetry} ${currentRetry === 1 ? "retry" : "retries"})` : ""}.\n\nScores:\n${summary}`,
       );
       return;
     }
@@ -271,23 +298,61 @@ export async function applyBatchFixPreviews(previews: FileFixPreview[], maxRetri
 /**
  * Extract surrounding context around an issue for AI understanding.
  */
-function getContextSnippet(code: string, issue: A11yIssue, contextLines: number = 2): string {
-  const lines = code.split('\n');
+function getContextSnippet(
+  code: string,
+  issue: A11yIssue,
+  contextLines: number = 2,
+): string {
+  const lines = code.split("\n");
   const startLine = Math.max(0, issue.line - contextLines);
-  const endLine = Math.min(lines.length, (issue.endLine ?? issue.line) + contextLines + 1);
-  return lines.slice(startLine, endLine).join('\n');
+  const endLine = Math.min(
+    lines.length,
+    (issue.endLine ?? issue.line) + contextLines + 1,
+  );
+  return lines.slice(startLine, endLine).join("\n");
 }
 
 /**
  * Apply a single fix to the code by replacing the issue snippet with fixed code.
- * Handles both single-line and multi-line replacements.
+ * Uses snippet matching to find and replace the exact issue location instead of relying on position offsets.
  */
-function applyFixToCode(code: string, issue: A11yIssue, fixedCode: string): string {
-  const lines = code.split('\n');
+function applyFixToCode(
+  code: string,
+  issue: A11yIssue,
+  fixedCode: string,
+): string {
+  const originalSnippet = issue.snippet;
+
+  // First, try to find and replace using the original snippet
+  // This is more reliable than position-based replacement
+  if (originalSnippet && code.includes(originalSnippet)) {
+    // Replace only the first occurrence to avoid replacing unrelated similar code
+    const index = code.indexOf(originalSnippet);
+    const before = code.substring(0, index);
+    const after = code.substring(index + originalSnippet.length);
+
+    // Ensure fixedCode doesn't duplicate the snippet
+    const replacement = fixedCode.trim();
+    const result = before + replacement + after;
+
+    console.log(
+      `[A11y Fix] Successfully replaced snippet using text matching for rule: ${issue.rule}`,
+    );
+    return result;
+  }
+
+  // Fallback: Use line/column based replacement if snippet matching fails
+  console.warn(
+    `[A11y Fix] Snippet matching failed for ${issue.rule}. Attempting line/column replacement.`,
+  );
+
+  const lines = code.split("\n");
 
   // Validate line boundaries
   if (issue.line >= lines.length) {
-    throw new Error(`Line ${issue.line} is out of range (file has ${lines.length} lines)`);
+    throw new Error(
+      `Line ${issue.line} is out of range (file has ${lines.length} lines)`,
+    );
   }
 
   // Handle single-line replacements
@@ -295,33 +360,39 @@ function applyFixToCode(code: string, issue: A11yIssue, fixedCode: string): stri
     const line = lines[issue.line];
     const before = line.substring(0, issue.column);
     const after = line.substring(issue.endColumn ?? line.length);
-    
+
     // Validate columns are within bounds
     if (issue.column > line.length) {
-      console.warn(`Column ${issue.column} exceeds line length ${line.length}. Using full line.`);
+      console.warn(
+        `Column ${issue.column} exceeds line length ${line.length}. Skipping this fix.`,
+      );
       return code; // Skip this fix, don't corrupt the file
     }
-    
+
     lines[issue.line] = before + fixedCode + after;
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   // Handle multi-line replacements
   const startLine = issue.line;
   const endLine = issue.endLine ?? issue.line;
-  
+
   if (endLine >= lines.length) {
-    throw new Error(`End line ${endLine} is out of range (file has ${lines.length} lines)`);
+    throw new Error(
+      `End line ${endLine} is out of range (file has ${lines.length} lines)`,
+    );
   }
 
   const before = lines[startLine].substring(0, issue.column);
-  const after = lines[endLine].substring(issue.endColumn ?? lines[endLine].length);
-  
+  const after = lines[endLine].substring(
+    issue.endColumn ?? lines[endLine].length,
+  );
+
   // Remove the affected lines and insert the fix
   const replacement = before + fixedCode + after;
   lines.splice(startLine, endLine - startLine + 1, replacement);
-  
-  return lines.join('\n');
+
+  return lines.join("\n");
 }
 
 /**
@@ -360,16 +431,16 @@ export function calculateAccessibilityScore(issues: A11yIssue[]): number {
 
   for (const issue of issues) {
     switch (issue.severity) {
-      case 'error':
+      case "error":
         penalty += 10;
         break;
-      case 'warning':
+      case "warning":
         penalty += 5;
         break;
-      case 'info':
+      case "info":
         penalty += 2;
         break;
-      case 'hint':
+      case "hint":
         penalty += 1;
         break;
     }
@@ -381,7 +452,9 @@ export function calculateAccessibilityScore(issues: A11yIssue[]): number {
 /**
  * Get the current accessibility score for a document.
  */
-export async function getDocumentScore(document: vscode.TextDocument): Promise<number> {
+export async function getDocumentScore(
+  document: vscode.TextDocument,
+): Promise<number> {
   const fileName = document.fileName;
   let issues = scanForA11yIssues(document.getText(), fileName);
   const config = await loadConfig();

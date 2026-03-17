@@ -1,7 +1,7 @@
-import * as vscode from 'vscode';
-import { scanForA11yIssues } from './scanner/astScanner';
-import { getAiFix } from './ai/provider';
-import type { A11yIssue } from './types';
+import * as vscode from "vscode";
+import { scanForA11yIssues } from "./scanner/astScanner";
+import { getAiFix } from "./ai/provider";
+import type { A11yIssue } from "./types";
 
 /**
  * SARIF (Static Analysis Results Interchange Format) v2.1.0 exporter.
@@ -58,14 +58,32 @@ interface SarifLocation {
 /* ── Rule metadata for SARIF ────────────────────────────────────────────── */
 
 const RULE_METADATA: Record<string, { description: string; wcag?: string }> = {
-  'img-alt': { description: 'Images must have alt text', wcag: '1.1.1' },
-  'button-label': { description: 'Buttons must have accessible names', wcag: '4.1.2' },
-  'aria-role': { description: 'ARIA roles must be valid', wcag: '4.1.2' },
-  'form-label': { description: 'Form controls must have labels', wcag: '1.3.1' },
-  'click-events-have-key-events': { description: 'Interactive elements need keyboard support', wcag: '2.1.1' },
-  'aria-pattern': { description: 'ARIA widget patterns must be correctly structured', wcag: '4.1.2' },
-  'color-contrast': { description: 'Text must meet WCAG AA contrast ratio', wcag: '1.4.3' },
-  'heading-order': { description: 'Heading levels should follow logical order', wcag: '1.3.1' },
+  "img-alt": { description: "Images must have alt text", wcag: "1.1.1" },
+  "button-label": {
+    description: "Buttons must have accessible names",
+    wcag: "4.1.2",
+  },
+  "aria-role": { description: "ARIA roles must be valid", wcag: "4.1.2" },
+  "form-label": {
+    description: "Form controls must have labels",
+    wcag: "1.3.1",
+  },
+  "click-events-have-key-events": {
+    description: "Interactive elements need keyboard support",
+    wcag: "2.1.1",
+  },
+  "aria-pattern": {
+    description: "ARIA widget patterns must be correctly structured",
+    wcag: "4.1.2",
+  },
+  "color-contrast": {
+    description: "Text must meet WCAG AA contrast ratio",
+    wcag: "1.4.3",
+  },
+  "heading-order": {
+    description: "Heading levels should follow logical order",
+    wcag: "1.3.1",
+  },
 };
 
 /* ── Export commands ────────────────────────────────────────────────────── */
@@ -73,25 +91,39 @@ const RULE_METADATA: Record<string, { description: string; wcag?: string }> = {
 export async function exportSarif(): Promise<void> {
   try {
     const result = await scanWorkspaceForExport();
-    if (!result) { return; }
+    if (!result) {
+      return;
+    }
 
     const sarif = buildSarif(result);
-    await saveExport(JSON.stringify(sarif, null, 2), 'a11y-report.sarif', 'SARIF');
+    await saveExport(
+      JSON.stringify(sarif, null, 2),
+      "a11y-report.sarif",
+      "SARIF",
+    );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    vscode.window.showErrorMessage(`A11y Scanner: SARIF export failed — ${msg}`);
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    vscode.window.showErrorMessage(
+      `A11y Scanner: SARIF export failed — ${msg}`,
+    );
   }
 }
 
 export async function exportJson(): Promise<void> {
   try {
     const result = await scanWorkspaceForExport();
-    if (!result) { return; }
+    if (!result) {
+      return;
+    }
 
     const report = buildJsonReport(result);
-    await saveExport(JSON.stringify(report, null, 2), 'a11y-report.json', 'JSON');
+    await saveExport(
+      JSON.stringify(report, null, 2),
+      "a11y-report.json",
+      "JSON",
+    );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
+    const msg = e instanceof Error ? e.message : "Unknown error";
     vscode.window.showErrorMessage(`A11y Scanner: JSON export failed — ${msg}`);
   }
 }
@@ -103,14 +135,18 @@ export async function exportJson(): Promise<void> {
 export async function exportJsonWithAiFixes(): Promise<void> {
   try {
     const result = await scanWorkspaceForExport();
-    if (!result) { return; }
+    if (!result) {
+      return;
+    }
 
     // Check if AI provider is configured
-    const config = vscode.workspace.getConfiguration('a11y');
-    const provider = config.get<string>('aiProvider', 'none');
-    
-    if (provider === 'none') {
-      vscode.window.showWarningMessage('A11y Scanner: AI provider not configured. Set up "a11y.aiProvider" to enable AI fix suggestions.');
+    const config = vscode.workspace.getConfiguration("a11y");
+    const provider = config.get<string>("aiProvider", "none");
+
+    if (provider === "none") {
+      vscode.window.showWarningMessage(
+        'A11y Scanner: AI provider not configured. Set up "a11y.aiProvider" to enable AI fix suggestions.',
+      );
       return;
     }
 
@@ -118,7 +154,7 @@ export async function exportJsonWithAiFixes(): Promise<void> {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'A11y Scanner: Generating AI fix suggestions...',
+        title: "A11y Scanner: Generating AI fix suggestions...",
         cancellable: false,
       },
       async (progress) => {
@@ -133,8 +169,8 @@ export async function exportJsonWithAiFixes(): Promise<void> {
 
           for (const issue of file.issues) {
             processed++;
-            progress.report({ increment: (100 / totalIssues) });
-            
+            progress.report({ increment: 100 / totalIssues });
+
             // Get AI fix for this issue
             const aiFix = await getIssueAiFix(fileText, issue);
             if (aiFix) {
@@ -146,10 +182,16 @@ export async function exportJsonWithAiFixes(): Promise<void> {
     );
 
     const report = buildJsonReport(result);
-    await saveExport(JSON.stringify(report, null, 2), 'a11y-report-with-fixes.json', 'JSON');
+    await saveExport(
+      JSON.stringify(report, null, 2),
+      "a11y-report-with-fixes.json",
+      "JSON",
+    );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    vscode.window.showErrorMessage(`A11y Scanner: JSON export with fixes failed — ${msg}`);
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    vscode.window.showErrorMessage(
+      `A11y Scanner: JSON export with fixes failed — ${msg}`,
+    );
   }
 }
 
@@ -164,19 +206,22 @@ interface ScanResult {
 async function scanWorkspaceForExport(): Promise<ScanResult | null> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {
-    vscode.window.showWarningMessage('A11y Scanner: No workspace folder open.');
+    vscode.window.showWarningMessage("A11y Scanner: No workspace folder open.");
     return null;
   }
 
   return await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: 'A11y Scanner: Scanning workspace for export...',
+      title: "A11y Scanner: Scanning workspace for export...",
       cancellable: false,
     },
     async () => {
-      const fileUris = await vscode.workspace.findFiles('**/*.{tsx,jsx}', '**/node_modules/**');
-      const files: ScanResult['files'] = [];
+      const fileUris = await vscode.workspace.findFiles(
+        "**/*.{tsx,jsx}",
+        "**/node_modules/**",
+      );
+      const files: ScanResult["files"] = [];
       let totalIssues = 0;
 
       for (const uri of fileUris) {
@@ -205,66 +250,79 @@ function buildSarif(scan: ScanResult): SarifLog {
         ruleId: issue.rule,
         level: severityToSarifLevel(issue.severity),
         message: { text: issue.message },
-        locations: [{
-          physicalLocation: {
-            artifactLocation: {
-              uri: file.relativePath.replace(/\\/g, '/'),
-              uriBaseId: '%SRCROOT%',
-            },
-            region: {
-              startLine: issue.line + 1,   // SARIF uses 1-based lines
-              startColumn: issue.column + 1,
+        locations: [
+          {
+            physicalLocation: {
+              artifactLocation: {
+                uri: file.relativePath.replace(/\\/g, "/"),
+                uriBaseId: "%SRCROOT%",
+              },
+              region: {
+                startLine: issue.line + 1, // SARIF uses 1-based lines
+                startColumn: issue.column + 1,
+              },
             },
           },
-        }],
+        ],
       });
     }
   }
 
-  const rules: SarifRule[] = Array.from(seenRules).sort().map(id => {
-    const meta = RULE_METADATA[id];
-    return {
-      id,
-      shortDescription: { text: meta?.description || id },
-      helpUri: meta?.wcag ? `https://www.w3.org/WAI/WCAG21/Understanding/${wcagAnchor(meta.wcag)}` : undefined,
-      defaultConfiguration: { level: 'warning' },
-    };
-  });
+  const rules: SarifRule[] = Array.from(seenRules)
+    .sort()
+    .map((id) => {
+      const meta = RULE_METADATA[id];
+      return {
+        id,
+        shortDescription: { text: meta?.description || id },
+        helpUri: meta?.wcag
+          ? `https://www.w3.org/WAI/WCAG21/Understanding/${wcagAnchor(meta.wcag)}`
+          : undefined,
+        defaultConfiguration: { level: "warning" },
+      };
+    });
 
   return {
-    $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json',
-    version: '2.1.0',
-    runs: [{
-      tool: {
-        driver: {
-          name: 'A11y Scanner',
-          version: '0.1.0',
-          informationUri: 'https://github.com/lockton/a11y-scanner-extension',
-          rules,
+    $schema:
+      "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+    version: "2.1.0",
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: "A11y Scanner",
+            version: "0.1.0",
+            informationUri: "https://github.com/lockton/a11y-scanner-extension",
+            rules,
+          },
         },
+        results,
       },
-      results,
-    }],
+    ],
   };
 }
 
-function severityToSarifLevel(severity: A11yIssue['severity']): string {
+function severityToSarifLevel(severity: A11yIssue["severity"]): string {
   switch (severity) {
-    case 'error': return 'error';
-    case 'warning': return 'warning';
-    case 'info': return 'note';
-    case 'hint': return 'note';
+    case "error":
+      return "error";
+    case "warning":
+      return "warning";
+    case "info":
+      return "note";
+    case "hint":
+      return "note";
   }
 }
 
 function wcagAnchor(sc: string): string {
   // Map WCAG SC numbers to Understanding doc slugs
   const map: Record<string, string> = {
-    '1.1.1': 'non-text-content',
-    '1.3.1': 'info-and-relationships',
-    '1.4.3': 'contrast-minimum',
-    '2.1.1': 'keyboard',
-    '4.1.2': 'name-role-value',
+    "1.1.1": "non-text-content",
+    "1.3.1": "info-and-relationships",
+    "1.4.3": "contrast-minimum",
+    "2.1.1": "keyboard",
+    "4.1.2": "name-role-value",
   };
   return map[sc] || sc;
 }
@@ -274,24 +332,34 @@ function wcagAnchor(sc: string): string {
 /**
  * Helper function to get context snippet around an issue
  */
-function getContextSnippet(code: string, issue: A11yIssue, contextLines: number = 2): string {
-  const lines = code.split('\n');
+function getContextSnippet(
+  code: string,
+  issue: A11yIssue,
+  contextLines: number = 2,
+): string {
+  const lines = code.split("\n");
   const startLine = Math.max(0, issue.line - contextLines);
-  const endLine = Math.min(lines.length, (issue.endLine ?? issue.line) + contextLines + 1);
-  return lines.slice(startLine, endLine).join('\n');
+  const endLine = Math.min(
+    lines.length,
+    (issue.endLine ?? issue.line) + contextLines + 1,
+  );
+  return lines.slice(startLine, endLine).join("\n");
 }
 
 /**
  * Get AI fix suggestion for an issue (can be used in reports)
  */
-async function getIssueAiFix(fileContent: string, issue: A11yIssue): Promise<{ fixedCode?: string; explanation?: string } | null> {
+async function getIssueAiFix(
+  fileContent: string,
+  issue: A11yIssue,
+): Promise<{ fixedCode?: string; explanation?: string } | null> {
   try {
     const surroundingContext = getContextSnippet(fileContent, issue);
     const codeSnippet = issue.snippet;
     const aiFix = await getAiFix(codeSnippet, issue, surroundingContext);
     return aiFix;
   } catch (e) {
-    console.error('Error getting AI fix:', e);
+    console.error("Error getting AI fix:", e);
     return null;
   }
 }
@@ -308,22 +376,22 @@ function buildJsonReport(scan: ScanResult): object {
   }
 
   return {
-    tool: 'A11y Scanner',
-    version: '0.1.0',
+    tool: "A11y Scanner",
+    version: "0.1.0",
     scannedAt: scan.scannedAt,
     summary: {
       totalIssues: scan.totalIssues,
       filesScanned: scan.files.length,
-      filesWithIssues: scan.files.filter(f => f.issues.length > 0).length,
+      filesWithIssues: scan.files.filter((f) => f.issues.length > 0).length,
       byRule,
       bySeverity,
     },
     files: scan.files
-      .filter(f => f.issues.length > 0)
-      .map(f => ({
-        path: f.relativePath.replace(/\\/g, '/'),
+      .filter((f) => f.issues.length > 0)
+      .map((f) => ({
+        path: f.relativePath.replace(/\\/g, "/"),
         issueCount: f.issues.length,
-        issues: f.issues.map(i => {
+        issues: f.issues.map((i) => {
           const issue: any = {
             rule: i.rule,
             severity: i.severity,
@@ -333,7 +401,7 @@ function buildJsonReport(scan: ScanResult): object {
             snippet: i.snippet,
             wcag: RULE_METADATA[i.rule]?.wcag || null,
           };
-          
+
           // Include AI fix suggestion details if available
           // Note: These are parsed from the issue object if pre-computed
           if ((i as any).aiFix) {
@@ -342,7 +410,7 @@ function buildJsonReport(scan: ScanResult): object {
               fixedCode: (i as any).aiFix.fixedCode,
             };
           }
-          
+
           return issue;
         }),
       })),
@@ -351,7 +419,11 @@ function buildJsonReport(scan: ScanResult): object {
 
 /* ── File save helper ───────────────────────────────────────────────────── */
 
-async function saveExport(content: string, defaultName: string, format: string): Promise<void> {
+async function saveExport(
+  content: string,
+  defaultName: string,
+  format: string,
+): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   const defaultUri = workspaceFolder
     ? vscode.Uri.joinPath(workspaceFolder.uri, defaultName)
@@ -359,9 +431,10 @@ async function saveExport(content: string, defaultName: string, format: string):
 
   const saveUri = await vscode.window.showSaveDialog({
     defaultUri,
-    filters: format === 'SARIF'
-      ? { 'SARIF': ['sarif'], 'JSON': ['json'] }
-      : { 'JSON': ['json'] },
+    filters:
+      format === "SARIF"
+        ? { SARIF: ["sarif"], JSON: ["json"] }
+        : { JSON: ["json"] },
     title: `Save A11y ${format} Report`,
   });
 
@@ -371,5 +444,7 @@ async function saveExport(content: string, defaultName: string, format: string):
 
   const encoder = new TextEncoder();
   await vscode.workspace.fs.writeFile(saveUri, encoder.encode(content));
-  vscode.window.showInformationMessage(`A11y Scanner: ${format} report saved to ${vscode.workspace.asRelativePath(saveUri)}`);
+  vscode.window.showInformationMessage(
+    `A11y Scanner: ${format} report saved to ${vscode.workspace.asRelativePath(saveUri)}`,
+  );
 }
