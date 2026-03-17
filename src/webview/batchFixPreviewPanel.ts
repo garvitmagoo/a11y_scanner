@@ -99,7 +99,7 @@ export class BatchFixPreviewPanel {
         break;
 
       case 'viewDiff':
-        await this.viewFileDiff(message.index);
+        await this.viewFileDiff();
         break;
     }
   }
@@ -151,28 +151,12 @@ export class BatchFixPreviewPanel {
   }
 
   /**
-   * Show detailed diff for a file by opening a side-by-side comparison.
+   * Toggle full file diff view for a file.
    */
-  private async viewFileDiff(index: number): Promise<void> {
-    const preview = this.previews[index];
-
-    try {
-      // Open the original file in the editor
-      await vscode.window.showTextDocument(preview.uri, { preview: true });
-
-      // Show information message about the fixes
-      const fixedIssuesCount = preview.appliedCount;
-      const failedIssuesCount = preview.failedCount;
-
-      const message = `Found ${fixedIssuesCount} fixable issue(s) and ${failedIssuesCount} failed fix(es) in ${preview.path}.
-
-You can see the proposed fixes in the batch fix preview panel. Click "Apply Selected Fixes" to apply them.`;
-
-      vscode.window.showInformationMessage(message);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown error';
-      vscode.window.showErrorMessage(`A11y Scanner: Failed to open file - ${msg}`);
-    }
+  private viewFileDiff(): Promise<void> {
+    // This is handled by the webview's JavaScript directly
+    // No need to do anything here - the UI will handle the toggle
+    return Promise.resolve();
   }
 
   /**
@@ -304,6 +288,13 @@ You can see the proposed fixes in the batch fix preview panel. Click "Apply Sele
     .file-content.active {
       display: block;
     }
+    .file-diff {
+      display: none;
+      background: var(--vscode-editor-background);
+    }
+    .file-diff.active {
+      display: block;
+    }
     .diff-section {
       margin-bottom: 16px;
     }
@@ -416,6 +407,11 @@ You can see the proposed fixes in the batch fix preview panel. Click "Apply Sele
       const content = document.getElementById('content-' + index);
       content?.classList.toggle('active');
     }
+
+    function toggleFullDiff(index) {
+      const diff = document.getElementById('diff-' + index);
+      diff?.classList.toggle('active');
+    }
   </script>
 </body>
 </html>`;
@@ -459,10 +455,25 @@ You can see the proposed fixes in the batch fix preview panel. Click "Apply Sele
             <span class="stat-badge applied">${preview.appliedCount} applied</span>
             ${preview.failedCount > 0 ? `<span class="stat-badge failed">${preview.failedCount} failed</span>` : ''}
           </div>
-          <button class="view-diff-btn" onclick="viewDiff(${index}); event.stopPropagation();">Open File</button>
+          <button class="view-diff-btn" onclick="toggleFullDiff(${index}); event.stopPropagation();">View Full Diff</button>
         </div>
         <div id="content-${index}" class="file-content">
           ${issuesList}
+        </div>
+        <div id="diff-${index}" class="file-diff">
+          <div style="padding: 16px; border-top: 1px solid var(--vscode-border);">
+            <h3 style="margin-bottom: 12px; font-size: 13px;">Full File Diff</h3>
+            <div class="code-block" style="flex-direction: column;">
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 12px; color: #f48771; margin-bottom: 8px; font-weight: 600;">Original Code</div>
+                <pre class="code-original" style="max-height: 300px;">${this.escapeHtml(preview.originalCode)}</pre>
+              </div>
+              <div>
+                <div style="font-size: 12px; color: #4ec94e; margin-bottom: 8px; font-weight: 600;">Fixed Code</div>
+                <pre class="code-fixed" style="max-height: 300px;">${this.escapeHtml(preview.fixedCode)}</pre>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `;
