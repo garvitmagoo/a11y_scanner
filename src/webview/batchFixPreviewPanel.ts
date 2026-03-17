@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
-import type { FileFixPreview } from '../ai/batchFixer';
-import { applyBatchFixPreviews, generateFixSummary } from '../ai/batchFixer';
+import * as vscode from "vscode";
+import type { FileFixPreview } from "../ai/batchFixer";
+import { applyBatchFixPreviews, generateFixSummary } from "../ai/batchFixer";
 
 /**
  * Webview panel for displaying batch AI fix previews with before/after comparison.
@@ -39,8 +39,8 @@ export class BatchFixPreviewPanel {
     }
 
     const panel = vscode.window.createWebviewPanel(
-      'a11yBatchFixPreview',
-      'A11y Batch Fix Preview',
+      "a11yBatchFixPreview",
+      "A11y Batch Fix Preview",
       column,
       {
         enableScripts: true,
@@ -72,7 +72,7 @@ export class BatchFixPreviewPanel {
    */
   private async handleWebviewMessage(message: any): Promise<void> {
     switch (message.command) {
-      case 'toggleFile':
+      case "toggleFile":
         if (this.selectedIndexes.has(message.index)) {
           this.selectedIndexes.delete(message.index);
         } else {
@@ -81,7 +81,21 @@ export class BatchFixPreviewPanel {
         this.panel.webview.html = this.getHtml();
         break;
 
-      case 'selectAll':
+      case "toggleFix":
+        // Toggle acceptance of individual fix
+        const fileIndex = message.fileIndex;
+        const fixIndex = message.fixIndex;
+        if (fileIndex < this.previews.length) {
+          const preview = this.previews[fileIndex];
+          if (fixIndex < preview.issues.length) {
+            const issueFix = preview.issues[fixIndex];
+            issueFix.accepted = !issueFix.accepted;
+          }
+        }
+        this.panel.webview.html = this.getHtml();
+        break;
+
+      case "selectAll":
         this.selectedIndexes.clear();
         for (let i = 0; i < this.previews.length; i++) {
           this.selectedIndexes.add(i);
@@ -89,16 +103,16 @@ export class BatchFixPreviewPanel {
         this.panel.webview.html = this.getHtml();
         break;
 
-      case 'deselectAll':
+      case "deselectAll":
         this.selectedIndexes.clear();
         this.panel.webview.html = this.getHtml();
         break;
 
-      case 'applyAll':
+      case "applyAll":
         await this.applySelectedFixes();
         break;
 
-      case 'viewDiff':
+      case "viewDiff":
         await this.viewFileDiff();
         break;
     }
@@ -108,21 +122,25 @@ export class BatchFixPreviewPanel {
    * Apply selected fixes to files.
    */
   private async applySelectedFixes(): Promise<void> {
-    const selectedPreviews = Array.from(this.selectedIndexes).map(i => this.previews[i]);
+    const selectedPreviews = Array.from(this.selectedIndexes).map(
+      (i) => this.previews[i],
+    );
 
     if (selectedPreviews.length === 0) {
-      vscode.window.showWarningMessage('A11y Scanner: No files selected for fixing.');
+      vscode.window.showWarningMessage(
+        "A11y Scanner: No files selected for fixing.",
+      );
       return;
     }
 
     const confirmApply = await vscode.window.showWarningMessage(
       `A11y Scanner: Apply fixes to ${selectedPreviews.length} file(s)?`,
       { modal: true },
-      'Apply',
-      'Cancel',
+      "Apply",
+      "Cancel",
     );
 
-    if (confirmApply !== 'Apply') {
+    if (confirmApply !== "Apply") {
       return;
     }
 
@@ -130,7 +148,7 @@ export class BatchFixPreviewPanel {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'A11y Scanner: Applying batch fixes...',
+          title: "A11y Scanner: Applying batch fixes...",
           cancellable: false,
         },
         async () => {
@@ -145,8 +163,10 @@ export class BatchFixPreviewPanel {
 
       this.dispose();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown error';
-      vscode.window.showErrorMessage(`A11y Scanner: Failed to apply fixes - ${msg}`);
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      vscode.window.showErrorMessage(
+        `A11y Scanner: Failed to apply fixes - ${msg}`,
+      );
     }
   }
 
@@ -166,7 +186,7 @@ export class BatchFixPreviewPanel {
     const summary = generateFixSummary(this.previews);
     const filesHtml = this.previews
       .map((preview, idx) => this.getFilePreviewHtml(preview, idx))
-      .join('');
+      .join("");
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -412,6 +432,10 @@ export class BatchFixPreviewPanel {
       const diff = document.getElementById('diff-' + index);
       diff?.classList.toggle('active');
     }
+
+    function toggleFix(fileIndex, fixIndex) {
+      vscode.postMessage({ command: 'toggleFix', fileIndex, fixIndex });
+    }
   </script>
 </body>
 </html>`;
@@ -423,14 +447,23 @@ export class BatchFixPreviewPanel {
   private getFilePreviewHtml(preview: FileFixPreview, index: number): string {
     const isSelected = this.selectedIndexes.has(index);
     const issuesList = preview.issues
-      .map((issueFix) => {
-        const { issue, fixedCode, explanation, error } = issueFix;
+      .map((issueFix, fixIndex) => {
+        const { issue, fixedCode, explanation, error, accepted } = issueFix;
 
         return `
-          <div class="diff-section">
-            <div class="issue-label">${issue.rule} (Line ${issue.line + 1}): ${issue.message}</div>
-            ${explanation ? `<div style="font-size: 11px; color: var(--vscode-textLink-foreground); margin-bottom: 8px;">💡 ${explanation}</div>` : ''}
-            ${error ? `<div style="font-size: 11px; color: #f48771; margin-bottom: 8px;">⚠ ${error}</div>` : ''}
+          <div class="diff-section" style="opacity: ${accepted ? 1 : 0.6}; border-left: 3px solid ${accepted ? '#2d7d2d' : '#666'}; padding-left: 12px; margin-left: 0;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+              <div style="flex: 1;">
+                <div class="issue-label">${issue.rule} (Line ${issue.line + 1}): ${issue.message}</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button style="padding: 4px 10px; font-size: 11px; background: ${accepted ? '#2d7d2d' : 'var(--vscode-textBlockQuote-background)'}; color: ${accepted ? '#4ec94e' : 'var(--vscode-foreground)'}; border: 1px solid ${accepted ? '#2d7d2d' : 'var(--vscode-border)'}; border-radius: 3px; cursor: pointer;" onclick="toggleFix(${index}, ${fixIndex}); event.stopPropagation();">
+                  ${accepted ? '✓ Accept' : '✗ Reject'}
+                </button>
+              </div>
+            </div>
+            ${explanation ? `<div style="font-size: 11px; color: var(--vscode-textLink-foreground); margin-bottom: 8px;">💡 ${explanation}</div>` : ""}
+            ${error ? `<div style="font-size: 11px; color: #f48771; margin-bottom: 8px;">⚠ ${error}</div>` : ""}
             <div class="code-block">
               <div>
                 <div style="font-size: 11px; color: #f48771; margin-bottom: 4px;">Original</div>
@@ -438,22 +471,22 @@ export class BatchFixPreviewPanel {
               </div>
               <div>
                 <div style="font-size: 11px; color: #4ec94e; margin-bottom: 4px;">Fixed</div>
-                <pre class="code-fixed">${fixedCode ? this.escapeHtml(fixedCode) : 'N/A'}</pre>
+                <pre class="code-fixed">${fixedCode ? this.escapeHtml(fixedCode) : "N/A"}</pre>
               </div>
             </div>
           </div>
         `;
       })
-      .join('');
+      .join("");
 
     return `
       <div class="file-preview">
         <div class="file-header" onclick="toggleContent(${index})">
-          <input type="checkbox" class="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleFile(${index})">
+          <input type="checkbox" class="checkbox" ${isSelected ? "checked" : ""} onchange="toggleFile(${index})">
           <div class="file-path">${preview.path}</div>
           <div class="file-stats">
             <span class="stat-badge applied">${preview.appliedCount} applied</span>
-            ${preview.failedCount > 0 ? `<span class="stat-badge failed">${preview.failedCount} failed</span>` : ''}
+            ${preview.failedCount > 0 ? `<span class="stat-badge failed">${preview.failedCount} failed</span>` : ""}
           </div>
           <button class="view-diff-btn" onclick="toggleFullDiff(${index}); event.stopPropagation();">View Full Diff</button>
         </div>
@@ -484,13 +517,13 @@ export class BatchFixPreviewPanel {
    */
   private escapeHtml(text: string): string {
     const map: Record<string, string> = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;',
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
     };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return text.replace(/[&<>"']/g, (m) => map[m]);
   }
 
   /**
@@ -499,6 +532,6 @@ export class BatchFixPreviewPanel {
   public dispose(): void {
     BatchFixPreviewPanel.currentPanel = undefined;
     this.panel.dispose();
-    this.disposables.forEach(d => d.dispose());
+    this.disposables.forEach((d) => d.dispose());
   }
 }

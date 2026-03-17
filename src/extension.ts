@@ -7,7 +7,7 @@ import { BatchFixPreviewPanel } from './webview/batchFixPreviewPanel';
 import { createStatusBarItem, updateStatusBarScore } from './statusBar';
 import { generateA11yTests } from './testGenerator';
 import { compareWithLastCommit } from './gitRegression';
-import { exportSarif, exportJson } from './exportReport';
+import { exportSarif, exportJson, exportJsonWithAiFixes } from './exportReport';
 import { initAiProvider, setAiApiKey } from './ai/provider';
 import { getFileBatchFixPreview, getWorkspaceBatchFixPreview } from './ai/batchFixer';
 import { invalidateConfigCache } from './config';
@@ -186,6 +186,12 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('a11y.exportJson', async () => {
       await exportJson();
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('a11y.exportJsonWithAiFixes', async () => {
+      await exportJsonWithAiFixes();
     }),
   );
 

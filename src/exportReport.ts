@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { scanForA11yIssues } from './scanner/astScanner';
+import { getAiFix } from './ai/provider';
 import type { A11yIssue } from './types';
 
 /**
@@ -92,6 +93,63 @@ export async function exportJson(): Promise<void> {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     vscode.window.showErrorMessage(`A11y Scanner: JSON export failed — ${msg}`);
+  }
+}
+
+/**
+ * Export report with AI-powered fix suggestions.
+ * This includes proposed fixes for each issue from the AI provider.
+ */
+export async function exportJsonWithAiFixes(): Promise<void> {
+  try {
+    const result = await scanWorkspaceForExport();
+    if (!result) { return; }
+
+    // Check if AI provider is configured
+    const config = vscode.workspace.getConfiguration('a11y');
+    const provider = config.get<string>('aiProvider', 'none');
+    
+    if (provider === 'none') {
+      vscode.window.showWarningMessage('A11y Scanner: AI provider not configured. Set up "a11y.aiProvider" to enable AI fix suggestions.');
+      return;
+    }
+
+    // Enhance the report with AI suggestions
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'A11y Scanner: Generating AI fix suggestions...',
+        cancellable: false,
+      },
+      async (progress) => {
+        let processed = 0;
+        const totalIssues = result.totalIssues;
+
+        for (const file of result.files) {
+          // Read the actual file content to get context for AI fixes
+          const fileUri = vscode.Uri.file(file.absolutePath);
+          const fileContent = await vscode.workspace.fs.readFile(fileUri);
+          const fileText = new TextDecoder().decode(fileContent);
+
+          for (const issue of file.issues) {
+            processed++;
+            progress.report({ increment: (100 / totalIssues) });
+            
+            // Get AI fix for this issue
+            const aiFix = await getIssueAiFix(fileText, issue);
+            if (aiFix) {
+              (issue as any).aiFix = aiFix;
+            }
+          }
+        }
+      },
+    );
+
+    const report = buildJsonReport(result);
+    await saveExport(JSON.stringify(report, null, 2), 'a11y-report-with-fixes.json', 'JSON');
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    vscode.window.showErrorMessage(`A11y Scanner: JSON export with fixes failed — ${msg}`);
   }
 }
 
@@ -213,6 +271,31 @@ function wcagAnchor(sc: string): string {
 
 /* ── JSON report builder ────────────────────────────────────────────────── */
 
+/**
+ * Helper function to get context snippet around an issue
+ */
+function getContextSnippet(code: string, issue: A11yIssue, contextLines: number = 2): string {
+  const lines = code.split('\n');
+  const startLine = Math.max(0, issue.line - contextLines);
+  const endLine = Math.min(lines.length, (issue.endLine ?? issue.line) + contextLines + 1);
+  return lines.slice(startLine, endLine).join('\n');
+}
+
+/**
+ * Get AI fix suggestion for an issue (can be used in reports)
+ */
+async function getIssueAiFix(fileContent: string, issue: A11yIssue): Promise<{ fixedCode?: string; explanation?: string } | null> {
+  try {
+    const surroundingContext = getContextSnippet(fileContent, issue);
+    const codeSnippet = issue.snippet;
+    const aiFix = await getAiFix(codeSnippet, issue, surroundingContext);
+    return aiFix;
+  } catch (e) {
+    console.error('Error getting AI fix:', e);
+    return null;
+  }
+}
+
 function buildJsonReport(scan: ScanResult): object {
   const byRule: Record<string, number> = {};
   const bySeverity: Record<string, number> = {};
@@ -240,14 +323,28 @@ function buildJsonReport(scan: ScanResult): object {
       .map(f => ({
         path: f.relativePath.replace(/\\/g, '/'),
         issueCount: f.issues.length,
-        issues: f.issues.map(i => ({
-          rule: i.rule,
-          severity: i.severity,
-          message: i.message,
-          line: i.line + 1,
-          column: i.column + 1,
-          wcag: RULE_METADATA[i.rule]?.wcag || null,
-        })),
+        issues: f.issues.map(i => {
+          const issue: any = {
+            rule: i.rule,
+            severity: i.severity,
+            message: i.message,
+            line: i.line + 1,
+            column: i.column + 1,
+            snippet: i.snippet,
+            wcag: RULE_METADATA[i.rule]?.wcag || null,
+          };
+          
+          // Include AI fix suggestion details if available
+          // Note: These are parsed from the issue object if pre-computed
+          if ((i as any).aiFix) {
+            issue.aiSuggestion = {
+              explanation: (i as any).aiFix.explanation,
+              fixedCode: (i as any).aiFix.fixedCode,
+            };
+          }
+          
+          return issue;
+        }),
       })),
   };
 }
