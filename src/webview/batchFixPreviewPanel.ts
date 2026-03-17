@@ -151,23 +151,28 @@ export class BatchFixPreviewPanel {
   }
 
   /**
-   * Show detailed diff for a file.
+   * Show detailed diff for a file by opening a side-by-side comparison.
    */
   private async viewFileDiff(index: number): Promise<void> {
     const preview = this.previews[index];
-    const tempUri = vscode.Uri.parse(
-      `a11y-fixed:${preview.uri.fsPath}?timestamp=${Date.now()}`,
-    );
 
-    // Store the fixed content temporarily
-    (global as any).__a11yFixedContent = preview.fixedCode;
+    try {
+      // Open the original file in the editor
+      await vscode.window.showTextDocument(preview.uri, { preview: true });
 
-    await vscode.commands.executeCommand(
-      'vscode.diff',
-      preview.uri,
-      tempUri,
-      `A11y Fixes: ${preview.path}`,
-    );
+      // Show information message about the fixes
+      const fixedIssuesCount = preview.appliedCount;
+      const failedIssuesCount = preview.failedCount;
+
+      const message = `Found ${fixedIssuesCount} fixable issue(s) and ${failedIssuesCount} failed fix(es) in ${preview.path}.
+
+You can see the proposed fixes in the batch fix preview panel. Click "Apply Selected Fixes" to apply them.`;
+
+      vscode.window.showInformationMessage(message);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      vscode.window.showErrorMessage(`A11y Scanner: Failed to open file - ${msg}`);
+    }
   }
 
   /**
@@ -454,7 +459,7 @@ export class BatchFixPreviewPanel {
             <span class="stat-badge applied">${preview.appliedCount} applied</span>
             ${preview.failedCount > 0 ? `<span class="stat-badge failed">${preview.failedCount} failed</span>` : ''}
           </div>
-          <button class="view-diff-btn" onclick="viewDiff(${index}); event.stopPropagation();">View Diff</button>
+          <button class="view-diff-btn" onclick="viewDiff(${index}); event.stopPropagation();">Open File</button>
         </div>
         <div id="content-${index}" class="file-content">
           ${issuesList}
