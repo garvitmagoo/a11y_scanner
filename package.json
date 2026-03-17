@@ -1,0 +1,165 @@
+{
+  "name": "a11y-scanner",
+  "displayName": "A11y Scanner",
+  "description": "AI-powered accessibility scanner for React/JSX/TSX projects. Detects WCAG violations, previews screen reader output, generates a11y tests, and provides intelligent fix suggestions.",
+  "version": "0.1.0",
+  "publisher": "lockton",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lockton/a11y-scanner-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/lockton/a11y-scanner-extension/issues"
+  },
+  "homepage": "https://github.com/lockton/a11y-scanner-extension#readme",
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "wcag",
+    "react",
+    "jsx",
+    "tsx",
+    "screen-reader",
+    "aria",
+    "linter"
+  ],
+  "galleryBanner": {
+    "color": "#0078D4",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Testing",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:javascript"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "a11y.scanWorkspace",
+        "title": "A11y: Scan Workspace for Accessibility Issues"
+      },
+      {
+        "command": "a11y.scanCurrentFile",
+        "title": "A11y: Scan Current File"
+      },
+      {
+        "command": "a11y.showReport",
+        "title": "A11y: Show Accessibility Report"
+      },
+      {
+        "command": "a11y.screenReaderPreview",
+        "title": "A11y: Screen Reader Preview"
+      },
+      {
+        "command": "a11y.setApiKey",
+        "title": "A11y: Set AI API Key"
+      },
+      {
+        "command": "a11y.generateTests",
+        "title": "A11y: Generate Accessibility Tests"
+      },
+      {
+        "command": "a11y.compareWithLastCommit",
+        "title": "A11y: Compare with Last Commit"
+      },
+      {
+        "command": "a11y.exportSarif",
+        "title": "A11y: Export SARIF Report"
+      },
+      {
+        "command": "a11y.exportJson",
+        "title": "A11y: Export JSON Report"
+      }
+    ],
+    "configuration": {
+      "title": "A11y Scanner",
+      "properties": {
+        "a11y.aiProvider": {
+          "type": "string",
+          "enum": [
+            "azure-openai",
+            "openai",
+            "none"
+          ],
+          "default": "none",
+          "description": "AI provider for generating fix suggestions. Set to 'none' to disable AI features."
+        },
+        "a11y.aiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the selected AI provider. DEPRECATED: Use the 'A11y: Set AI API Key' command instead for secure storage.",
+          "deprecationMessage": "Use the 'A11y: Set AI API Key' command to store your key securely."
+        },
+        "a11y.aiEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI endpoint URL (required for azure-openai provider)."
+        },
+        "a11y.aiModel": {
+          "type": "string",
+          "default": "gpt-4",
+          "description": "Model/deployment name to use for AI suggestions."
+        },
+        "a11y.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan files for accessibility issues on save."
+        },
+        "a11y.scanOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan files when opened."
+        },
+        "a11y.severity": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "default": "warning",
+          "description": "Default diagnostic severity for accessibility issues."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "npm run compile && mocha",
+    "test:integration": "npm run compile && node out/test/runIntegration.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.56.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.3.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "typescript": "^5.3.0"
+  }
+}

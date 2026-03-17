@@ -1,0 +1,9 @@
+.vscode/**
+src/**
+out/test/**
+node_modules/**
+.mocharc.yml
+tsconfig.json
+**/*.map
+**/*.ts
+!out/**/*.js
