@@ -81,6 +81,14 @@
       {
         "command": "a11y.exportJson",
         "title": "A11y: Export JSON Report"
+      },
+      {
+        "command": "a11y.batchFixCurrentFile",
+        "title": "A11y: Batch Fix Current File (Preview & Apply)"
+      },
+      {
+        "command": "a11y.batchFixWorkspace",
+        "title": "A11y: Batch Fix Entire Workspace (Preview & Apply)"
       }
     ],
     "configuration": {

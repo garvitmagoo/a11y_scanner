@@ -3,11 +3,13 @@ import { initDiagnostics, updateDiagnostics, scanWorkspace } from './diagnostics
 import { A11yCodeActionProvider, applyAiFixCommand } from './codeActions';
 import { A11yReportPanel } from './webview/reportPanel';
 import { ScreenReaderPanel } from './webview/screenReaderPanel';
+import { BatchFixPreviewPanel } from './webview/batchFixPreviewPanel';
 import { createStatusBarItem, updateStatusBarScore } from './statusBar';
 import { generateA11yTests } from './testGenerator';
 import { compareWithLastCommit } from './gitRegression';
 import { exportSarif, exportJson } from './exportReport';
 import { initAiProvider, setAiApiKey } from './ai/provider';
+import { getFileBatchFixPreview, getWorkspaceBatchFixPreview } from './ai/batchFixer';
 import { invalidateConfigCache } from './config';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -184,6 +186,68 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('a11y.exportJson', async () => {
       await exportJson();
+    }),
+  );
+
+  // ── Batch AI Fix for Current File ──
+  context.subscriptions.push(
+    vscode.commands.registerCommand('a11y.batchFixCurrentFile', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage('A11y Scanner: No active file to fix.');
+        return;
+      }
+
+      try {
+        const preview = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'A11y Scanner: Analyzing file for fixes...',
+            cancellable: false,
+          },
+          async () => {
+            return await getFileBatchFixPreview(editor.document);
+          },
+        );
+
+        if (preview.appliedCount === 0 && preview.failedCount === 0) {
+          vscode.window.showInformationMessage('A11y Scanner: No issues found in this file.');
+          return;
+        }
+
+        await BatchFixPreviewPanel.createOrShow([preview]);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
+        vscode.window.showErrorMessage(`A11y Scanner: Batch fix failed - ${msg}`);
+      }
+    }),
+  );
+
+  // ── Batch AI Fix for Entire Workspace ──
+  context.subscriptions.push(
+    vscode.commands.registerCommand('a11y.batchFixWorkspace', async () => {
+      try {
+        const previews = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'A11y Scanner: Analyzing workspace for fixes...',
+            cancellable: false,
+          },
+          async () => {
+            return await getWorkspaceBatchFixPreview();
+          },
+        );
+
+        if (previews.length === 0) {
+          vscode.window.showInformationMessage('A11y Scanner: No accessibility issues found in the workspace.');
+          return;
+        }
+
+        await BatchFixPreviewPanel.createOrShow(previews);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
+        vscode.window.showErrorMessage(`A11y Scanner: Workspace batch fix failed - ${msg}`);
+      }
     }),
   );
 }
